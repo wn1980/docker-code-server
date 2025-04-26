@@ -1,6 +1,6 @@
 FROM ubuntu:noble
 
-# Install dependencies, including supervisor
+# Install dependencies, including supervisor and clangd (Corrected syntax)
 RUN apt-get update && \
     apt-get install -y \
     curl \
@@ -9,7 +9,8 @@ RUN apt-get update && \
     openssl \
     net-tools \
     supervisor \
-    && rm -rf /var/lib/apt/lists/*
+    clangd \
+    && rm -rf /var/lib/apt/lists/* # Correctly chained cleanup command
 
 # Configure existing ubuntu user
 RUN useradd -m -s /bin/bash ubuntu || true && \
@@ -65,8 +66,11 @@ RUN echo '[program:code-server]' > /home/ubuntu/.conf.d/code-server.conf && \
 # Final config and extension installation (run as ubuntu)
 USER ubuntu
 
-# Install Google Cloud Code extension (includes Gemini features)
-RUN code-server --install-extension googlecloudtools.cloudcode --force
+# Install VS Code extensions
+RUN code-server --install-extension googlecloudtools.cloudcode --force # Gemini / Google Cloud
+RUN code-server --install-extension llvm-vs-code-extensions.vscode-clangd --force # clangd
+RUN code-server --install-extension ms-python.python --force         # Python
+RUN code-server --install-extension ms-vscode.cmake-tools --force    # CMake Tools
 
 WORKDIR /home/ubuntu/project
 

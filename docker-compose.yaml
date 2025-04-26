@@ -1,9 +1,10 @@
 services:
   code-server:
-    build: .  # This tells Docker Compose to look for a Dockerfile here
+    build: .
+    image: wn1980/code-server-ai  # Added image tag
     container_name: code-server
     environment:
-      - TZ=Asia/Bangkok 
+      - TZ=Asia/Bangkok # Timezone set previously
     volumes:
       - code-server-config:/home/ubuntu/.config/code-server
       - code-server-projects:/home/ubuntu/project
