@@ -82,11 +82,11 @@ RUN mkdir -p /etc/code-server/certs && \
     chown -R ubuntu:ubuntu /etc/code-server/certs
 
 # Copy main supervisor config file (ensure local file does NOT have user=root)
-COPY conf/supervisord.main.conf /etc/supervisor/supervisord.conf
+#COPY conf/supervisord.main.conf /etc/supervisor/supervisord.conf
 
 # Copy the supervisor program config file (ensure local file has environment=HOME=...)
-COPY conf/code-server.supervisor.conf /home/ubuntu/.supervisor/conf.d/code-server.conf
-RUN chown ubuntu:ubuntu /home/ubuntu/.supervisor/conf.d/code-server.conf
+COPY supervisor /opt/supervisor
+RUN chown -R ubuntu:ubuntu /opt/supervisor
 
 # Switch to ubuntu user for extension installation
 USER ubuntu
@@ -109,4 +109,4 @@ EXPOSE 8443
 USER root
 
 # Run supervisord using the main configuration file
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+CMD ["/usr/bin/supervisord", "-c", "/opt/supervisor/supervisord.conf"]
