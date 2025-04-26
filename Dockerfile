@@ -1,9 +1,13 @@
 FROM ubuntu:noble
 
-# Install dependencies, including supervisor, clangd, and wget
-RUN apt-get update && \
-    apt-get install -y \
+# Update package lists first
+RUN apt-get update
+
+# Install dependencies, including supervisor, clangd, wget, and Node.js prerequisites
+RUN apt-get install -y \
+    ca-certificates \
     curl \
+    gnupg \
     sudo \
     git \
     openssl \
@@ -11,26 +15,33 @@ RUN apt-get update && \
     supervisor \
     clangd \
     wget \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean # Added apt-get clean
+ && rm -rf /var/lib/apt/lists/* \
+ && apt-get clean
 
 # Set environment variable for Miniconda installation path
 ENV MINICONDA_PATH /opt/miniconda
-# Set environment variable for updated PATH
+# Set environment variable for updated PATH (Conda added)
 ENV PATH $MINICONDA_PATH/bin:$PATH
 
 # Install Miniconda
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
     bash ~/miniconda.sh -b -p $MINICONDA_PATH && \
     rm ~/miniconda.sh && \
-    # Initialize conda for bash (might be needed for some operations)
-    # $MINICONDA_PATH/bin/conda init bash && \
     # Set auto_activate_base to false system-wide
     $MINICONDA_PATH/bin/conda config --system --set auto_activate_base false && \
-    # Optional: Update conda and base environment
-    # $MINICONDA_PATH/bin/conda update -n base -c defaults conda -y && \
     # Clean up conda cache
     $MINICONDA_PATH/bin/conda clean -afy
+
+# Create Conda environment 'dev_env' with specified tools
+RUN conda create -n dev_env -c conda-forge \
+    python=3.12 \
+    nodejs=22 \
+    cmake \
+    cxx-compiler \
+    make \
+    gdb \
+    -y && \
+    conda clean -afy
 
 # Configure existing ubuntu user
 RUN useradd -m -s /bin/bash ubuntu || true && \
@@ -39,13 +50,17 @@ RUN useradd -m -s /bin/bash ubuntu || true && \
     mkdir -p /home/ubuntu/.config/code-server && \
     chown -R ubuntu:ubuntu /home/ubuntu
 
+# Automatically activate dev_env for interactive shells
+RUN echo "conda activate dev_env" >> /home/ubuntu/.bashrc && \
+    chown ubuntu:ubuntu /home/ubuntu/.bashrc
+
 # Allow ubuntu user to use sudo without password
 RUN echo 'ubuntu ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/ubuntu-nopasswd && \
     chmod 0440 /etc/sudoers.d/ubuntu-nopasswd
 
-# Create user-specific supervisor config directory
-RUN mkdir -p /home/ubuntu/.conf.d && \
-    chown -R ubuntu:ubuntu /home/ubuntu/.conf.d
+# Create user-specific supervisor directory structure
+RUN mkdir -p /home/ubuntu/.supervisor/conf.d && \
+    chown -R ubuntu:ubuntu /home/ubuntu/.supervisor
 
 # Define code-server version
 ARG CODER_VERSION=4.99.3
@@ -62,29 +77,14 @@ RUN mkdir -p /etc/code-server/certs && \
       -subj "/C=US/ST=California/L=San Francisco/O=IT/CN=localhost" && \
     chown -R ubuntu:ubuntu /etc/code-server/certs
 
-# Create main Supervisor configuration file (points include to user home)
-RUN mkdir -p /etc/supervisor/conf.d/ && \
-    echo '[supervisord]' > /etc/supervisor/supervisord.conf && \
-    echo 'nodaemon=true' >> /etc/supervisor/supervisord.conf && \
-    echo '' >> /etc/supervisor/supervisord.conf && \
-    echo '[include]' >> /etc/supervisor/supervisord.conf && \
-    echo 'files = /home/ubuntu/.conf.d/*.conf' >> /etc/supervisor/supervisord.conf
+# Copy main supervisor config file from conf/ subdirectory
+COPY conf/supervisord.main.conf /etc/supervisor/supervisord.conf
 
-# Create Supervisor configuration for code-server in user home directory
-# Note: Runs the globally installed code-server, PATH allows finding conda tools later
-RUN echo '[program:code-server]' > /home/ubuntu/.conf.d/code-server.conf && \
-    echo 'command=/usr/bin/code-server --bind-addr 0.0.0.0:8443 --auth none' >> /home/ubuntu/.conf.d/code-server.conf && \
-    echo 'user=ubuntu' >> /home/ubuntu/.conf.d/code-server.conf && \
-    echo 'directory=/home/ubuntu/project' >> /home/ubuntu/.conf.d/code-server.conf && \
-    echo 'autostart=true' >> /home/ubuntu/.conf.d/code-server.conf && \
-    echo 'autorestart=true' >> /home/ubuntu/.conf.d/code-server.conf && \
-    echo 'stdout_logfile=/dev/stdout' >> /home/ubuntu/.conf.d/code-server.conf && \
-    echo 'stdout_logfile_maxbytes=0' >> /home/ubuntu/.conf.d/code-server.conf && \
-    echo 'stderr_logfile=/dev/stderr' >> /home/ubuntu/.conf.d/code-server.conf && \
-    echo 'stderr_logfile_maxbytes=0' >> /home/ubuntu/.conf.d/code-server.conf && \
-    chown ubuntu:ubuntu /home/ubuntu/.conf.d/code-server.conf
+# Copy the supervisor program config file from conf/ subdirectory and set ownership
+COPY conf/code-server.supervisor.conf /home/ubuntu/.supervisor/conf.d/code-server.conf
+RUN chown ubuntu:ubuntu /home/ubuntu/.supervisor/conf.d/code-server.conf
 
-# Final config and extension installation (run as ubuntu)
+# Switch to ubuntu user for extension installation
 USER ubuntu
 
 # Install VS Code extensions
@@ -100,6 +100,9 @@ EXPOSE 8443
 
 # Healthcheck removed or needs update for supervisor/http
 # ENTRYPOINT removed
+
+# Switch back to root user before CMD to start supervisord as root
+USER root
 
 # Run supervisord using the main configuration file
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]

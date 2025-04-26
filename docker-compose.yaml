@@ -1,18 +1,18 @@
 services:
   code-server:
     build: .
-    image: wn1980/code-server-ai  # Added image tag
-    container_name: code-server
+    image: wn1980/code-server-ai
+    container_name: code_server_ai
     environment:
       - TZ=Asia/Bangkok # Timezone set previously
     volumes:
-      - code-server-config:/home/ubuntu/.config/code-server
-      - code-server-projects:/home/ubuntu/project
+      - config:/home/ubuntu/.config
+      - projects:/home/ubuntu/project
     ports:
       - "8443:8443"
     restart: unless-stopped
-    user: "1000:1000"
+    # user: "1000:1000" # Removed this line
 
 volumes:
-  code-server-config:
-  code-server-projects:
+  config:
+  projects:
