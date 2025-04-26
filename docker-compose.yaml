@@ -1,9 +1,9 @@
 services:
   code-server:
-    build: .
+    build: .  # This tells Docker Compose to look for a Dockerfile here
     container_name: code-server
     environment:
-      - TZ=America/New_York
+      - TZ=Asia/Bangkok 
     volumes:
       - code-server-config:/home/ubuntu/.config/code-server
       - code-server-projects:/home/ubuntu/project
