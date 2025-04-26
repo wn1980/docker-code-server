@@ -1,0 +1,17 @@
+services:
+  code-server:
+    build: .
+    container_name: code-server
+    environment:
+      - TZ=America/New_York
+    volumes:
+      - code-server-config:/home/ubuntu/.config/code-server
+      - code-server-projects:/home/ubuntu/project
+    ports:
+      - "8443:8443"
+    restart: unless-stopped
+    user: "1000:1000"
+
+volumes:
+  code-server-config:
+  code-server-projects:
