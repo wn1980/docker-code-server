@@ -1,6 +1,6 @@
 FROM ubuntu:noble
 
-# Install dependencies
+# Install dependencies, including supervisor
 RUN apt-get update && \
     apt-get install -y \
     curl \
@@ -8,6 +8,7 @@ RUN apt-get update && \
     git \
     openssl \
     net-tools \
+    supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 # Configure existing ubuntu user
@@ -21,11 +22,17 @@ RUN useradd -m -s /bin/bash ubuntu || true && \
 RUN echo 'ubuntu ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/ubuntu-nopasswd && \
     chmod 0440 /etc/sudoers.d/ubuntu-nopasswd
 
-# Install code-server
-ARG CODER_VERSION=4.23.0
+# Create user-specific supervisor config directory
+RUN mkdir -p /home/ubuntu/.conf.d && \
+    chown -R ubuntu:ubuntu /home/ubuntu/.conf.d
+
+# Define code-server version
+ARG CODER_VERSION=4.99.3
+
+# Install specific code-server version
 RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --version ${CODER_VERSION}
 
-# Generate SSL certificates (Note: These are no longer used by the CMD below)
+# Generate SSL certificates (Note: Still not used by the command)
 RUN mkdir -p /etc/code-server/certs && \
     openssl req -x509 -nodes -days 365 \
       -newkey rsa:2048 \
@@ -34,7 +41,28 @@ RUN mkdir -p /etc/code-server/certs && \
       -subj "/C=US/ST=California/L=San Francisco/O=IT/CN=localhost" && \
     chown -R ubuntu:ubuntu /etc/code-server/certs
 
-# Final config and extension installation
+# Create main Supervisor configuration file (points include to user home)
+RUN mkdir -p /etc/supervisor/conf.d/ && \
+    echo '[supervisord]' > /etc/supervisor/supervisord.conf && \
+    echo 'nodaemon=true' >> /etc/supervisor/supervisord.conf && \
+    echo '' >> /etc/supervisor/supervisord.conf && \
+    echo '[include]' >> /etc/supervisor/supervisord.conf && \
+    echo 'files = /home/ubuntu/.conf.d/*.conf' >> /etc/supervisor/supervisord.conf
+
+# Create Supervisor configuration for code-server in user home directory
+RUN echo '[program:code-server]' > /home/ubuntu/.conf.d/code-server.conf && \
+    echo 'command=/usr/bin/code-server --bind-addr 0.0.0.0:8443 --auth none' >> /home/ubuntu/.conf.d/code-server.conf && \
+    echo 'user=ubuntu' >> /home/ubuntu/.conf.d/code-server.conf && \
+    echo 'directory=/home/ubuntu/project' >> /home/ubuntu/.conf.d/code-server.conf && \
+    echo 'autostart=true' >> /home/ubuntu/.conf.d/code-server.conf && \
+    echo 'autorestart=true' >> /home/ubuntu/.conf.d/code-server.conf && \
+    echo 'stdout_logfile=/dev/stdout' >> /home/ubuntu/.conf.d/code-server.conf && \
+    echo 'stdout_logfile_maxbytes=0' >> /home/ubuntu/.conf.d/code-server.conf && \
+    echo 'stderr_logfile=/dev/stderr' >> /home/ubuntu/.conf.d/code-server.conf && \
+    echo 'stderr_logfile_maxbytes=0' >> /home/ubuntu/.conf.d/code-server.conf && \
+    chown ubuntu:ubuntu /home/ubuntu/.conf.d/code-server.conf
+
+# Final config and extension installation (run as ubuntu)
 USER ubuntu
 
 # Install Google Cloud Code extension (includes Gemini features)
@@ -45,11 +73,8 @@ WORKDIR /home/ubuntu/project
 VOLUME ["/home/ubuntu/.config/code-server", "/home/ubuntu/project"]
 EXPOSE 8443
 
-# Healthcheck is removed as it targeted HTTPS, which is now disabled.
-# A new healthcheck could be added targeting HTTP if needed.
-# HEALTHCHECK --interval=30s --timeout=10s \
-#   CMD curl --fail https://localhost:8443/ || exit 1
+# Healthcheck removed or needs update for supervisor/http
+# ENTRYPOINT removed
 
-ENTRYPOINT ["code-server"]
-# Modified CMD to run without HTTPS
-CMD ["--bind-addr", "0.0.0.0:8443", "--auth", "none"]
+# Run supervisord using the main configuration file
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
