@@ -3,7 +3,7 @@ FROM ubuntu:noble
 # Update package lists first
 RUN apt-get update
 
-# Install dependencies, including supervisor, clangd, wget, and Node.js prerequisites
+# Install base dependencies, including supervisor, clangd, wget (Node.js prereqs kept just in case)
 RUN apt-get install -y \
     ca-certificates \
     curl \
@@ -50,11 +50,15 @@ RUN useradd -m -s /bin/bash ubuntu || true && \
     mkdir -p /home/ubuntu/.config/code-server && \
     chown -R ubuntu:ubuntu /home/ubuntu
 
-# Automatically activate dev_env for interactive shells
-RUN echo "conda activate dev_env" >> /home/ubuntu/.bashrc && \
-    chown ubuntu:ubuntu /home/ubuntu/.bashrc
+# Initialize Conda for the ubuntu user's bash shell and set default env
+USER ubuntu
+RUN conda init bash && \
+    echo "conda activate dev_env" >> /home/ubuntu/.bashrc
 
-# Allow ubuntu user to use sudo without password
+# Switch back to root for subsequent steps
+USER root
+
+# Allow ubuntu user to use sudo without password (Already included)
 RUN echo 'ubuntu ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/ubuntu-nopasswd && \
     chmod 0440 /etc/sudoers.d/ubuntu-nopasswd
 
@@ -77,10 +81,10 @@ RUN mkdir -p /etc/code-server/certs && \
       -subj "/C=US/ST=California/L=San Francisco/O=IT/CN=localhost" && \
     chown -R ubuntu:ubuntu /etc/code-server/certs
 
-# Copy main supervisor config file from conf/ subdirectory
+# Copy main supervisor config file (ensure local file does NOT have user=root)
 COPY conf/supervisord.main.conf /etc/supervisor/supervisord.conf
 
-# Copy the supervisor program config file from conf/ subdirectory and set ownership
+# Copy the supervisor program config file (ensure local file has environment=HOME=...)
 COPY conf/code-server.supervisor.conf /home/ubuntu/.supervisor/conf.d/code-server.conf
 RUN chown ubuntu:ubuntu /home/ubuntu/.supervisor/conf.d/code-server.conf
 
