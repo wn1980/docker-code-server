@@ -63,8 +63,8 @@ RUN echo 'ubuntu ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/ubuntu-nopasswd && \
     chmod 0440 /etc/sudoers.d/ubuntu-nopasswd
 
 # Create user-specific supervisor directory structure
-RUN mkdir -p /home/ubuntu/.supervisor/conf.d && \
-    chown -R ubuntu:ubuntu /home/ubuntu/.supervisor
+# RUN mkdir -p /home/ubuntu/.supervisor/conf.d && \
+#     chown -R ubuntu:ubuntu /home/ubuntu/.supervisor
 
 # Define code-server version
 ARG CODER_VERSION=4.99.3
@@ -81,13 +81,6 @@ RUN mkdir -p /etc/code-server/certs && \
       -subj "/C=US/ST=California/L=San Francisco/O=IT/CN=localhost" && \
     chown -R ubuntu:ubuntu /etc/code-server/certs
 
-# Copy main supervisor config file (ensure local file does NOT have user=root)
-#COPY conf/supervisord.main.conf /etc/supervisor/supervisord.conf
-
-# Copy the supervisor program config file (ensure local file has environment=HOME=...)
-COPY supervisor /opt/supervisor
-RUN chown -R ubuntu:ubuntu /opt/supervisor
-
 # Switch to ubuntu user for extension installation
 USER ubuntu
 
@@ -99,14 +92,21 @@ RUN code-server --install-extension ms-vscode.cmake-tools --force    # CMake Too
 
 WORKDIR /home/ubuntu/project
 
-VOLUME ["/home/ubuntu/.config/code-server", "/home/ubuntu/project"]
+# Switch back to root user before CMD to start supervisord as root
+USER root
+
+# Copy main supervisor config file (ensure local file does NOT have user=root)
+#COPY conf/supervisord.main.conf /etc/supervisor/supervisord.conf
+
+# Copy the supervisor program config file (ensure local file has environment=HOME=...)
+COPY supervisor /opt/supervisor
+RUN chown -R ubuntu:ubuntu /opt/supervisor
+
+VOLUME ["/home/ubuntu/.config", "/home/ubuntu/project"]
 EXPOSE 8443
 
 # Healthcheck removed or needs update for supervisor/http
 # ENTRYPOINT removed
-
-# Switch back to root user before CMD to start supervisord as root
-USER root
 
 # Run supervisord using the main configuration file
 CMD ["/usr/bin/supervisord", "-c", "/opt/supervisor/supervisord.conf"]

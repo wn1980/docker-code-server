@@ -1,8 +1,8 @@
 services:
   code-server:
     build: .
-    image: wn1980/code-server-ai
-    container_name: code_server_ai
+    image: wn1980/dev-server-box
+    container_name: dev_server_box
     environment:
       - TZ=Asia/Bangkok # Timezone set previously
     volumes:
