@@ -1,6 +1,6 @@
 FROM ubuntu:noble
 
-# Install dependencies, including supervisor and clangd (Corrected syntax)
+# Install dependencies, including supervisor, clangd, and wget
 RUN apt-get update && \
     apt-get install -y \
     curl \
@@ -10,7 +10,27 @@ RUN apt-get update && \
     net-tools \
     supervisor \
     clangd \
-    && rm -rf /var/lib/apt/lists/* # Correctly chained cleanup command
+    wget \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean # Added apt-get clean
+
+# Set environment variable for Miniconda installation path
+ENV MINICONDA_PATH /opt/miniconda
+# Set environment variable for updated PATH
+ENV PATH $MINICONDA_PATH/bin:$PATH
+
+# Install Miniconda
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
+    bash ~/miniconda.sh -b -p $MINICONDA_PATH && \
+    rm ~/miniconda.sh && \
+    # Initialize conda for bash (might be needed for some operations)
+    # $MINICONDA_PATH/bin/conda init bash && \
+    # Set auto_activate_base to false system-wide
+    $MINICONDA_PATH/bin/conda config --system --set auto_activate_base false && \
+    # Optional: Update conda and base environment
+    # $MINICONDA_PATH/bin/conda update -n base -c defaults conda -y && \
+    # Clean up conda cache
+    $MINICONDA_PATH/bin/conda clean -afy
 
 # Configure existing ubuntu user
 RUN useradd -m -s /bin/bash ubuntu || true && \
@@ -30,7 +50,7 @@ RUN mkdir -p /home/ubuntu/.conf.d && \
 # Define code-server version
 ARG CODER_VERSION=4.99.3
 
-# Install specific code-server version
+# Install specific code-server version (globally)
 RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --version ${CODER_VERSION}
 
 # Generate SSL certificates (Note: Still not used by the command)
@@ -51,6 +71,7 @@ RUN mkdir -p /etc/supervisor/conf.d/ && \
     echo 'files = /home/ubuntu/.conf.d/*.conf' >> /etc/supervisor/supervisord.conf
 
 # Create Supervisor configuration for code-server in user home directory
+# Note: Runs the globally installed code-server, PATH allows finding conda tools later
 RUN echo '[program:code-server]' > /home/ubuntu/.conf.d/code-server.conf && \
     echo 'command=/usr/bin/code-server --bind-addr 0.0.0.0:8443 --auth none' >> /home/ubuntu/.conf.d/code-server.conf && \
     echo 'user=ubuntu' >> /home/ubuntu/.conf.d/code-server.conf && \
