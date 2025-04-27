@@ -1,4 +1,4 @@
-FROM ubuntu:noble
+FROM --platform=linux/x86-64 ubuntu:noble
 
 # Define ARG for host docker group GID (Set explicitly to 988 as requested)
 ARG HOST_DOCKER_GID=988
