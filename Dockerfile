@@ -119,7 +119,7 @@ RUN code-server --install-extension ms-vscode.cmake-tools --force    # CMake Too
 RUN code-server --install-extension DanielSanMedium.dscodegpt --force # CodeGPT
 
 # Set Workdir as ubuntu user
-WORKDIR /home/ubuntu/project
+WORKDIR /home/ubuntu/projects
 
 # Switch back to root user before CMD to start supervisord as root
 USER root
@@ -130,7 +130,7 @@ USER root
 COPY supervisor /opt/supervisor
 RUN chown -R ubuntu:ubuntu /opt/supervisor
 
-VOLUME ["/home/ubuntu/.config", "/home/ubuntu/project"]
+VOLUME ["/home/ubuntu/.config", "/home/ubuntu/projects"]
 EXPOSE 8443
 
 # Healthcheck removed or needs update for supervisor/http
