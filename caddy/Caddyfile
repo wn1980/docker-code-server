@@ -1,0 +1,29 @@
+# File: /home/developer/DEV/docker-code-server/caddy/Caddyfile
+
+# Listen on port 443 for any hostname
+:443 {
+    # Enable compression
+    encode gzip
+
+    # Use Caddy's internal CA for self-signed certificates
+    # Access via https://<your_server_ip>
+    tls internal
+
+    # Proxy requests to the code-server container (service name is 'code-server' in docker-compose)
+    # on its internal port 8080 (we will configure code-server for this port next)
+    reverse_proxy code-server:8080 {
+         # Required for code-server's websockets
+         header_up Host {http.reverse_proxy.upstream.hostport}
+         header_up X-Forwarded-Host {host}
+    }
+
+    # Optional: Log access requests
+    log {
+      output file /var/log/caddy/access.log
+    }
+}
+
+# Optional: Redirect HTTP to HTTPS (Uncomment ports: 80:80 in docker-compose if you use this)
+# :80 {
+#    redir https://{host}{uri} permanent
+# }

@@ -1,23 +1,35 @@
+# File: /home/developer/DEV/docker-code-server/docker-compose.yaml
 services:
   code-server: # Or dev_server_box, whatever you named it
     build:
       context: .
       args:
         HOST_DOCKER_GID: ${HOST_DOCKER_GID:-988}
-    image: wn1980/dev-server-box
+    image: wn1980/dev-server-box # Consider removing if always building locally
     container_name: dev_server_box
     environment:
       - TZ=Asia/Bangkok
     volumes:
       - config:/home/ubuntu/.config
-      - projects:/home/ubuntu/project
+      # Ensure this path matches the WORKDIR/target inside the container
+      - projects:/home/ubuntu/projects
       - /var/run/docker.sock:/var/run/docker.sock
-    ports: # <-- UNCOMMENTED and ensure it's 8443:8443
+    ports: # <-- Port 8443 is exposed
      - "8443:8443"
     restart: unless-stopped
     # user: "1000:1000" # Keep removed
 
-# nginx: # <-- DELETE THIS ENTIRE BLOCK
+    healthcheck: # <-- ADDED HEALTHCHECK BLOCK
+      # Command to check health. Uses curl to hit the /healthz endpoint.
+      # -f: Fail silently (no output) on server errors. Returns non-zero exit code.
+      # -k: Allow insecure server connections (for self-signed certs).
+      test: ["CMD", "curl", "-fk", "https://localhost:8443/healthz"]
+      interval: 30s       # Check every 30 seconds
+      timeout: 10s        # Wait up to 10 seconds for the check to complete
+      retries: 3          # Mark as unhealthy after 3 consecutive failures
+      start_period: 60s   # Wait 60 seconds after container start before first check
+
+# nginx: # <-- DELETE THIS ENTIRE BLOCK (As indicated in context)
 #   image: nginx:stable-alpine
 #   container_name: dev_server_box_nginx
 #   ports:
