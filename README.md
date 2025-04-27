@@ -1,10 +1,11 @@
 # dev-server-box
 
-A Dockerized development environment based on Ubuntu Noble, featuring `code-server` (VS Code in the browser) managed by Supervisor. It comes pre-configured with Miniconda, essential C++/Python development tools, and useful VS Code extensions, ready for remote development.
+A Dockerized development environment based on Ubuntu Noble, featuring `code-server` (VS Code in the browser) managed by Supervisor. It comes pre-configured with Miniconda, essential C++/Python development tools, useful VS Code extensions (including an **AI Code Assistant**), and is ready for remote development.
 
 ## ✨ Features
 
 *   **Web-Based VS Code:** Access a full VS Code experience via your browser using `code-server`.
+*   **AI Code Assistant:** Includes **Google Gemini** (via the Cloud Code extension) to assist with code generation, explanation, debugging, and more, right within the editor.
 *   **Ubuntu Noble Base:** Built on the latest Ubuntu LTS release (at the time of writing).
 *   **Miniconda:** Includes Miniconda for robust Python package and environment management.
 *   **Pre-configured Conda Environment (`dev_env`):**
@@ -20,7 +21,7 @@ A Dockerized development environment based on Ubuntu Noble, featuring `code-serv
 *   **Process Management:** Uses `supervisor` to manage the `code-server` process reliably.
 *   **Non-root User:** Runs `code-server` and development tasks as a standard user (`ubuntu`, UID/GID 1000) with passwordless `sudo` access.
 *   **Pre-installed VS Code Extensions:**
-    *   `googlecloudtools.cloudcode`: Google Cloud integration and Gemini AI assistant.
+    *   `googlecloudtools.cloudcode`: Google Cloud integration and **Gemini AI assistant**.
     *   `llvm-vs-code-extensions.vscode-clangd`: Clangd integration.
     *   `ms-python.python`: Python language support.
     *   `ms-vscode.cmake-tools`: CMake project support.
@@ -54,7 +55,7 @@ This project includes a `docker-compose.yaml` file for easier management of the 
 
 3.  **Access `code-server`:**
     *   Open your web browser and navigate to `http://localhost:8443`.
-    *   **Password:** `code-server` requires a password for access. This password should be configured within the `supervisor/code-server.conf` file (likely via the `PASSWORD` environment variable or a config file setting). **Check the `supervisor/code-server.conf` file in this repository or the container logs (`docker-compose logs code-server`) to find or confirm the password.**
+    *   **Password:** By default (as configured in `supervisor/code-server.conf`), authentication is **disabled** (`--auth none`). No password is required. If you modify the configuration to enable authentication, you will need to set and use a password.
 
 4.  **Working with Project Files:**
     The `docker-compose.yaml` file uses two **named volumes**:
@@ -87,7 +88,7 @@ This project includes a `docker-compose.yaml` file for easier management of the 
     *   The file explorer will show the contents of `/home/ubuntu/project`.
     *   Open a terminal within `code-server` (Terminal > New Terminal). You will be logged in as the `ubuntu` user, and the `dev_env` Conda environment will be activated automatically.
     *   You can use `git`, `python`, `g++`, `cmake`, `make`, `gdb`, `node`, etc., directly in the terminal.
-    *   The pre-installed extensions (Python, CMake, clangd, Cloud Code) should be active.
+    *   The pre-installed extensions (Python, CMake, clangd, Cloud Code with Gemini AI) should be active. You may need to log in to a Google account via the Cloud Code extension to fully utilize Gemini features.
 
 6.  **Stopping the Container:**
     To stop the container(s) defined in the compose file:
@@ -119,9 +120,11 @@ This project includes a `docker-compose.yaml` file for easier management of the 
 
 *   **Supervisor:** Process management is handled by Supervisor. Configuration files are located in the `supervisor/` directory within this repository and copied to `/opt/supervisor` inside the container.
     *   `supervisor/supervisord.conf`: Main supervisor configuration.
-    *   `supervisor/code-server.conf`: Configuration for running the `code-server` process (check here for password settings, startup flags, etc.).
+    *   `supervisor/code-server.conf`: Configuration for running the `code-server` process (check here for startup flags like `--auth`, `--cert`, etc.).
 *   **code-server:** User-specific settings are stored in `/home/ubuntu/.config/code-server` within the container, which is persisted by the `config` volume.
 *   **Conda:** The `dev_env` environment is activated by default for the `ubuntu` user's bash sessions via `.bashrc`. You can manage packages using `conda install`, `conda remove`, etc., within the `code-server` terminal.
+
+*Note: AI code generation tools assisted in the development of this project.*
 
 ## 🤝 Contributing
 
