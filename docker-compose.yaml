@@ -1,6 +1,9 @@
 services:
   code-server:
-    build: .
+    build:
+      context: .
+      # args: # REMOVED this section
+      #  HOST_DOCKER_GID: ${HOST_DOCKER_GID:-999}
     image: wn1980/dev-server-box
     container_name: dev_server_box
     environment:
@@ -8,7 +11,7 @@ services:
     volumes:
       - config:/home/ubuntu/.config
       - projects:/home/ubuntu/project
-      - /var/run/docker.sock:/var/run/docker.sock # Added Docker socket mount
+      - /var/run/docker.sock:/var/run/docker.sock # Docker socket mount
     ports:
       - "8443:8443"
     restart: unless-stopped
