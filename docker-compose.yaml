@@ -7,6 +7,7 @@ services:
         HOST_DOCKER_GID: ${HOST_DOCKER_GID:-988}
     image: wn1980/dev-server-box # Consider removing if always building locally
     container_name: dev_server_box
+    privileged: true
     environment:
       - TZ=Asia/Bangkok
     volumes:
