@@ -8,10 +8,11 @@ services:
     volumes:
       - config:/home/ubuntu/.config
       - projects:/home/ubuntu/project
+      - /var/run/docker.sock:/var/run/docker.sock # Added Docker socket mount
     ports:
       - "8443:8443"
     restart: unless-stopped
-    # user: "1000:1000" # Removed this line
+    # user: "1000:1000" # Keep this removed so supervisord starts as root
 
 volumes:
   config:
