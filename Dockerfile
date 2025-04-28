@@ -2,7 +2,10 @@
 # the appropriate architecture based on the build context or --platform flag.
 FROM ubuntu:noble
 
-# Define ARG for host docker group GID (Set explicitly to 988 as requested)
+# Define ARG for host docker group GID.
+# IMPORTANT: Set this at build time (--build-arg HOST_DOCKER_GID=$(getent group docker | cut -d: -f3))
+# to match your HOST's docker group GID for socket permissions.
+# Defaulting to 988 as per original, but overriding is recommended.
 ARG HOST_DOCKER_GID=988
 
 # Define automatic build arguments provided by BuildKit
@@ -12,7 +15,7 @@ ARG TARGETARCH
 # Update package lists first
 RUN apt-get update
 
-# Install base dependencies, including supervisor, clangd, wget
+# Install base dependencies, including supervisor, clangd, wget, curl
 # These packages are generally available for both amd64 and arm64
 RUN apt-get install -y \
     ca-certificates \
@@ -28,7 +31,7 @@ RUN apt-get install -y \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get clean
 
- # Add Docker's official GPG key & repository
+ # Add Docker's official GPG key & repository for CLI tools
  # Uses dpkg --print-architecture, which correctly identifies the target arch
 RUN install -m 0755 -d /etc/apt/keyrings && \
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc && \
@@ -39,12 +42,10 @@ RUN install -m 0755 -d /etc/apt/keyrings && \
       tee /etc/apt/sources.list.d/docker.list > /dev/null && \
     apt-get update
 
-# Install Docker Engine, CLI, containerd.io, and Docker Compose plugin
+# Install ONLY Docker CLI and Docker Compose plugin (No Engine/Daemon)
 # apt will fetch the correct architecture versions
 RUN apt-get update && apt-get install -y \
-    docker-ce \
     docker-ce-cli \
-    containerd.io \
     docker-compose-plugin \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -89,7 +90,8 @@ RUN useradd -m -s /bin/bash ubuntu || true && \
     mkdir -p /home/ubuntu/.config/code-server && \
     chown -R ubuntu:ubuntu /home/ubuntu
 
-# Create docker group with specific GID from build argument, then add ubuntu user
+# Create docker group with specific GID from build argument to match HOST docker group GID.
+# Then add ubuntu user to this group to allow access to the mounted docker socket.
 # (architecture independent)
 RUN groupadd --gid ${HOST_DOCKER_GID} docker || groupmod -g ${HOST_DOCKER_GID} docker || true
 RUN usermod -aG docker ubuntu
@@ -140,6 +142,7 @@ WORKDIR /home/ubuntu/projects
 USER root
 
 # Copy local supervisor directory structure
+# IMPORTANT: Ensure supervisor/supervisord.conf DOES NOT try to start dockerd
 COPY supervisor /opt/supervisor
 RUN chown -R ubuntu:ubuntu /opt/supervisor
 
@@ -147,19 +150,25 @@ VOLUME ["/home/ubuntu/.config", "/home/ubuntu/projects"]
 EXPOSE 8443
 
 # Run supervisord using the main configuration file
-# Ensure supervisor config starts dockerd (see previous notes) and code-server
+# Supervisor should now only manage code-server (and any other non-docker services)
 CMD ["/usr/bin/supervisord", "-c", "/opt/supervisor/supervisord.conf"]
 
-# --- IMPORTANT NOTES FOR DOCKER-IN-DOCKER (Apply to both architectures) ---
+# --- IMPORTANT NOTES FOR SHARING HOST DOCKER DAEMON ---
 #
-# 1. Runtime Flag: You MUST run this container with the --privileged flag.
-# 2. Supervisor Configuration: Ensure your supervisor/supervisord.conf starts dockerd.
-#    Example [program:dockerd] block:
-#    [program:dockerd]
-#    command=/usr/bin/dockerd --host=unix:///var/run/docker.sock --storage-driver=vfs
-#    autostart=true
-#    autorestart=true
-#    priority=10
-#    stdout_logfile=/var/log/supervisor/dockerd-stdout.log
-#    stderr_logfile=/var/log/supervisor/dockerd-stderr.log
-# 3. User Permissions: The ubuntu user is added to the docker group.
+# 1. Runtime Flags: You MUST run this container with:
+#    -v /var/run/docker.sock:/var/run/docker.sock
+#    This mounts the host's Docker socket into the container.
+#
+# 2. Build Argument: You SHOULD build this image with:
+#    --build-arg HOST_DOCKER_GID=$(getent group docker | cut -d: -f3 || echo 999)
+#    Replace '999' with a sensible default if the command fails. This ensures the 'docker'
+#    group inside the container has the same GID as the 'docker' group on your host,
+#    granting the 'ubuntu' user permission to use the mounted socket. If the GID inside
+#    doesn't match the GID owning the socket on the host, you'll get permission errors.
+#
+# 3. Supervisor Configuration: Ensure your supervisor/supervisord.conf file
+#    DOES NOT contain a [program:dockerd] section. Supervisor should only manage
+#    code-server and any other desired services within the container.
+#
+# 4. Privileged Flag: The --privileged flag is NO LONGER required for Docker functionality
+#    with this setup (though code-server or other tools might still need specific capabilities).

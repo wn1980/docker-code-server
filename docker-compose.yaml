@@ -1,47 +1,55 @@
 # File: /home/developer/DEV/docker-code-server/docker-compose.yaml
+
+# Create a .env file in this directory with the following content:
+# HOST_DOCKER_GID=$(getent group docker | cut -d: -f3 || echo 999)
+# (Replace 999 with a default GID if the docker group doesn't exist on your host)
+
 services:
-  code-server: # Or dev_server_box, whatever you named it
+  code-server:
     build:
       context: .
       args:
-        HOST_DOCKER_GID: ${HOST_DOCKER_GID:-988}
-    image: wn1980/dev-server-box # Consider removing if always building locally
+        # HOST_DOCKER_GID is automatically sourced from the .env file
+        HOST_DOCKER_GID: "${HOST_DOCKER_GID?Error: HOST_DOCKER_GID is not set in .env file}"
+    image: wn1980/dev-server-box # Removed: Build locally by default
     container_name: dev_server_box
-    privileged: true
+    # privileged: true # Removed: Not needed for docker socket mount with correct GID
+    # If specific capabilities are needed (e.g., for debugging), add them:
+    # cap_add:
+    #   - SYS_PTRACE # Example: For gdb debugging
     environment:
       - TZ=Asia/Bangkok
     volumes:
       - config:/home/ubuntu/.config
-      # Ensure this path matches the WORKDIR/target inside the container
       - projects:/home/ubuntu/projects
-      - /var/run/docker.sock:/var/run/docker.sock
-    ports: # <-- Port 8443 is exposed
+      # Mount the host Docker socket
+      - /var/run/docker.sock:/var/run/docker.sock:ro # Added ':ro' for read-only mount - slightly safer
+    ports:
      - "8443:8443"
     restart: unless-stopped
-    # user: "1000:1000" # Keep removed
+    # user: "1000:1000" # Keep removed - Container starts as root for supervisord
 
-    healthcheck: # <-- ADDED HEALTHCHECK BLOCK
-      # Command to check health. Uses curl to hit the /healthz endpoint.
-      # -f: Fail silently (no output) on server errors. Returns non-zero exit code.
-      # -k: Allow insecure server connections (for self-signed certs).
-      test: ["CMD", "curl", "-fk", "https://localhost:8443/healthz"]
-      interval: 30s       # Check every 30 seconds
-      timeout: 10s        # Wait up to 10 seconds for the check to complete
-      retries: 3          # Mark as unhealthy after 3 consecutive failures
-      start_period: 60s   # Wait 60 seconds after container start before first check
+    # Optional: Add resource limits
+    # Adjust these values based on your host machine and needs
+    # mem_limit: 4g # Example: Limit memory usage to 4GB
+    # cpus: '2.0'    # Example: Limit CPU usage to 2 cores
 
-# nginx: # <-- DELETE THIS ENTIRE BLOCK (As indicated in context)
-#   image: nginx:stable-alpine
-#   container_name: dev_server_box_nginx
-#   ports:
-#     - "8443:80"
-#   volumes:
-#     - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-#   restart: unless-stopped
-#   depends_on:
-#     - code-server
+    # Optional: Add labels for organization
+    labels:
+      - "com.example.description=Code Server Development Environment"
+      - "com.example.project=docker-code-server"
+
+    healthcheck:
+      # Test command assumes code-server runs HTTPS on 8443 and has /healthz
+      # Adjust if your code-server setup is different (e.g., HTTP, different port/path)
+      test: ["CMD", "curl", "-fk", "http://localhost:8443/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
 volumes:
   config:
+    # driver: local # Default driver is usually fine
   projects:
-
+    # driver: local

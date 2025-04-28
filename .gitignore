@@ -1,3 +1,4 @@
 .vscode
+.env
 Dockerfile.txt
 docker-compose.yaml.txt
