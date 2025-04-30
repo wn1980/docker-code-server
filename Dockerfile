@@ -1,6 +1,7 @@
 # Use the base image without forcing the platform. Docker will select
 # the appropriate architecture based on the build context or --platform flag.
-FROM ubuntu:noble
+# Pinning to a specific date tag for reproducibility
+FROM ubuntu:noble-20250404
 
 # Define ARG for host docker group GID.
 # IMPORTANT: Set this at build time (--build-arg HOST_DOCKER_GID=$(getent group docker | cut -d: -f3))
@@ -12,13 +13,11 @@ ARG HOST_DOCKER_GID=988
 # TARGETARCH will be 'amd64' or 'arm64' depending on the build target
 ARG TARGETARCH
 
-# Update package lists first
-RUN apt-get update
-
 # Install base dependencies, including supervisor, clangd, wget, curl
 # These packages are generally available for both amd64 and arm64
-RUN apt-get install -y \
-    ca-certificates \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Base requirement
+    ca-certificates \ 
     curl \
     gnupg \
     sudo \
@@ -27,12 +26,11 @@ RUN apt-get install -y \
     net-tools \
     supervisor \
     clangd \
-    wget \
- && rm -rf /var/lib/apt/lists/* \
- && apt-get clean
+    # For Miniconda download
+    wget \ 
+ && rm -rf /var/lib/apt/lists/*
 
  # Add Docker's official GPG key & repository for CLI tools
- # Uses dpkg --print-architecture, which correctly identifies the target arch
 RUN install -m 0755 -d /etc/apt/keyrings && \
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc && \
     chmod a+r /etc/apt/keyrings/docker.asc && \
@@ -40,14 +38,11 @@ RUN install -m 0755 -d /etc/apt/keyrings && \
       "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
       $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
       tee /etc/apt/sources.list.d/docker.list > /dev/null && \
-    apt-get update
-
-# Install ONLY Docker CLI and Docker Compose plugin (No Engine/Daemon)
-# apt will fetch the correct architecture versions
-RUN apt-get update && apt-get install -y \
+    # Install Docker CLI tools in the same layer
+    apt-get update && apt-get install -y --no-install-recommends \
     docker-ce-cli \
     docker-compose-plugin \
- && apt-get clean && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/*
 
 # Set environment variable for Miniconda installation path
 ENV MINICONDA_PATH /opt/miniconda
@@ -124,17 +119,21 @@ RUN mkdir -p /opt/code-server/certs && \
       -subj "/C=US/ST=California/L=San Francisco/O=IT/CN=localhost" && \
     chown -R ubuntu:ubuntu /opt/code-server/certs
 
-# Switch to ubuntu user for extension installation
+    # Switch to ubuntu user for subsequent steps
 USER ubuntu
 
 # Install VS Code extensions
+# Run as root, as code-server was installed globally by root
 # These extensions generally support multiple architectures or are architecture-agnostic
-RUN code-server --install-extension googlecloudtools.cloudcode --force # Gemini / Google Cloud
-RUN code-server --install-extension llvm-vs-code-extensions.vscode-clangd --force # clangd
-RUN code-server --install-extension ms-python.python --force         # Python
-RUN code-server --install-extension ms-vscode.cmake-tools --force    # CMake Tools
-RUN code-server --install-extension DanielSanMedium.dscodegpt --force # CodeGPT
-
+# Install extensions in a single layer. Removed --force, add back if needed for specific extensions.
+RUN code-server --install-extension llvm-vs-code-extensions.vscode-clangd \
+ && code-server --install-extension ms-python.python \
+ && code-server --install-extension ms-vscode.cmake-tools \
+ && code-server --install-extension google.geminicodeassist \
+ && code-server --install-extension DanielSanMedium.dscodegpt \
+ && code-server --install-extension rjmacarthy.twinny \
+ && code-server --install-extension ms-azuretools.vscode-docker 
+ 
 # Set Workdir as ubuntu user
 WORKDIR /home/ubuntu/projects
 
@@ -160,8 +159,8 @@ CMD ["/usr/bin/supervisord", "-c", "/opt/supervisor/supervisord.conf"]
 #    This mounts the host's Docker socket into the container.
 #
 # 2. Build Argument: You SHOULD build this image with:
-#    --build-arg HOST_DOCKER_GID=$(getent group docker | cut -d: -f3 || echo 999)
-#    Replace '999' with a sensible default if the command fails. This ensures the 'docker'
+#    --build-arg HOST_DOCKER_GID=$(getent group docker | cut -d: -f3 || echo 988)
+#    Replace '988' with the actual GID if the command fails. This ensures the 'docker'
 #    group inside the container has the same GID as the 'docker' group on your host,
 #    granting the 'ubuntu' user permission to use the mounted socket. If the GID inside
 #    doesn't match the GID owning the socket on the host, you'll get permission errors.

@@ -10,8 +10,10 @@ services:
       context: .
       args:
         # HOST_DOCKER_GID is automatically sourced from the .env file
-        HOST_DOCKER_GID: "${HOST_DOCKER_GID?Error: HOST_DOCKER_GID is not set in .env file}"
-    image: wn1980/dev-server-box # Removed: Build locally by default
+        HOST_DOCKER_GID: ${HOST_DOCKER_GID?Error - HOST_DOCKER_GID is not set in .env file}
+    image: wn1980/dev-server-box:${ARCH?Error - ARCH environment variable is not set (e.g., export ARCH=amd64)}
+    # Define the image name and tag.
+    # The tag uses the ARCH environment variable set on the host.
     container_name: dev_server_box
     # privileged: true # Removed: Not needed for docker socket mount with correct GID
     # If specific capabilities are needed (e.g., for debugging), add them:
