@@ -42,6 +42,7 @@ RUN install -m 0755 -d /etc/apt/keyrings && \
     apt-get update && apt-get install -y --no-install-recommends \
     docker-ce-cli \
     docker-compose-plugin \
+    docker-buildx-plugin \
  && rm -rf /var/lib/apt/lists/*
 
 # Set environment variable for Miniconda installation path

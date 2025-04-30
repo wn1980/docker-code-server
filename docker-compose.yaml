@@ -21,6 +21,7 @@ services:
     #   - SYS_PTRACE # Example: For gdb debugging
     environment:
       - TZ=Asia/Bangkok
+      - COMPOSE_BAKE=true
     volumes:
       - config:/home/ubuntu/.config
       - projects:/home/ubuntu/projects
