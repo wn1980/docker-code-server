@@ -130,3 +130,38 @@ This project includes a `docker-compose.yaml` file for easier management of the 
 
 Contributions are welcome! Please feel free to submit pull requests or open issues.
 
+# Development Environment
+
+## Modes of Operation
+
+### 1. Devcontainer Mode (VS Code)
+- Open the project in VS Code.
+- Install the "Remote - Containers" extension.
+- Click on the green "Remote" icon in the bottom-left corner and select "Reopen in Container."
+
+### 2. Normal Mode (Docker Compose)
+- Ensure the `.env` file is configured correctly.
+- Run the following command to start the container:
+  ```bash
+  docker-compose --profile normal up -d
+  ```
+
+---
+
+### **6. Optional: Add a Validation Script**
+Create a script to validate the [.env](http://_vscodecontentref_/10) file and ensure required variables are set before running in either mode.
+
+#### Example Validation Script (`validate-env.sh`):
+```bash
+#!/bin/bash
+if [ -z "$HOST_DOCKER_GID" ]; then
+  echo "Error: HOST_DOCKER_GID is not set in .env file."
+  exit 1
+fi
+if [ -z "$ARCH" ]; then
+  echo "Error: ARCH is not set in .env file."
+  exit 1
+fi
+echo "Environment variables are valid."
+```
+

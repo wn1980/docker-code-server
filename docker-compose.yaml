@@ -5,11 +5,10 @@
 # (Replace 999 with a default GID if the docker group doesn't exist on your host)
 
 services:
-  code-server:
+  dev-server:
     build:
       context: .
       args:
-        # HOST_DOCKER_GID is automatically sourced from the .env file
         HOST_DOCKER_GID: ${HOST_DOCKER_GID?Error - HOST_DOCKER_GID is not set in .env file}
     image: wn1980/dev-server-box:${ARCH?Error - ARCH environment variable is not set (e.g., export ARCH=amd64)}
     # Define the image name and tag.
@@ -19,12 +18,25 @@ services:
     # If specific capabilities are needed (e.g., for debugging), add them:
     # cap_add:
     #   - SYS_PTRACE # Example: For gdb debugging
+    profiles:
+      - normal
     environment:
       - TZ=Asia/Bangkok
       - COMPOSE_BAKE=true
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_VERSION_NOTIFICATIONS_ENABLED=false
+      - N8N_TEMPLATES_ENABLED=false
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_DIAGNOSTICS_CONFIG_FRONTEND=
+      - N8N_DIAGNOSTICS_CONFIG_BACKEND=
+      - EXTERNAL_FRONTEND_HOOKS_URLS=
     volumes:
       - config:/home/ubuntu/.config
-      - projects:/home/ubuntu/projects
+      - conda:/home/ubuntu/.conda
+      - n8n_data:/home/ubuntu/.n8n
+      - webapp_ws:/workspace
+      # - projects:/home/ubuntu/projects
       # Mount the host Docker socket
       - /var/run/docker.sock:/var/run/docker.sock:ro # Added ':ro' for read-only mount - slightly safer
     ports:
@@ -53,6 +65,8 @@ services:
 
 volumes:
   config:
-    # driver: local # Default driver is usually fine
-  projects:
-    # driver: local
+  conda:
+  n8n_data:
+    external: true
+  webapp_ws:
+    external: true

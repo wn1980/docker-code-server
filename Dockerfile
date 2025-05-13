@@ -13,7 +13,7 @@ ARG HOST_DOCKER_GID=988
 # TARGETARCH will be 'amd64' or 'arm64' depending on the build target
 ARG TARGETARCH
 
-# Install base dependencies, including supervisor, clangd, wget, curl
+# Install base dependencies, including supervisor, clangd, wget, curl, and unzip
 # These packages are generally available for both amd64 and arm64
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Base requirement
@@ -26,8 +26,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     net-tools \
     supervisor \
     clangd \
-    # For Miniconda download
     wget \ 
+    unzip \  
  && rm -rf /var/lib/apt/lists/*
 
  # Add Docker's official GPG key & repository for CLI tools
@@ -79,17 +79,43 @@ RUN conda create -n dev_env -c conda-forge \
     -y && \
     conda clean -afy
 
+# Activate the 'dev_env', install Firebase CLI globally using npm, and install ngrok
+RUN bash -c "source activate dev_env && \
+    npm install -g firebase-tools && \
+    ARCH=\$(uname -m) && \
+    case \$ARCH in \
+        x86_64) NGROK_ZIP='ngrok-v3-stable-linux-amd64.zip' ;; \
+        aarch64) NGROK_ZIP='ngrok-v3-stable-linux-arm64.zip' ;; \
+        armv*|arm) NGROK_ZIP='ngrok-v3-stable-linux-arm.zip' ;; \
+        *) echo 'Unsupported architecture for ngrok: \$ARCH'; exit 1 ;; \
+    esac && \
+    curl -O https://bin.equinox.io/c/bNyj1mQVY4c/\${NGROK_ZIP} && \
+    unzip -o \${NGROK_ZIP} && \
+    mv ngrok /usr/local/bin/ngrok && \
+    rm \${NGROK_ZIP} && \
+    ngrok version"
+
 # Configure existing ubuntu user (architecture independent)
-RUN useradd -m -s /bin/bash ubuntu || true && \
-    usermod -u 1000 ubuntu && \
-    groupmod -g 1000 ubuntu && \
-    mkdir -p /home/ubuntu/.config/code-server && \
+ARG USERNAME=ubuntu
+RUN useradd -m -s /bin/bash ${USERNAME} || true && \
+    usermod -u 1000 ${USERNAME} && \
+    groupmod -g 1000 ${USERNAME} && \
+    usermod --shell /bin/bash ${USERNAME} && \
+    mkdir -p /home/${USERNAME}/.n8n && \
+    chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.n8n && \
+    mkdir -p /home/${USERNAME}/.conda && \
+    chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.conda && \
+    mkdir -p /home/${USERNAME}/.config && \
+    chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config && \
+    mkdir -p /workspace && \
+    chown -R ${USERNAME}:${USERNAME} /workspace && \
+    ln -sfn /workspace /home/${USERNAME}/workspace && \
     chown -R ubuntu:ubuntu /home/ubuntu
 
 # Create docker group with specific GID from build argument to match HOST docker group GID.
 # Then add ubuntu user to this group to allow access to the mounted docker socket.
 # (architecture independent)
-RUN groupadd --gid ${HOST_DOCKER_GID} docker || groupmod -g ${HOST_DOCKER_GID} docker || true
+RUN groupadd --gid ${HOST_DOCKER_GID:-988} docker || groupmod -g ${HOST_DOCKER_GID:-988} docker || true
 RUN usermod -aG docker ubuntu
 
 # Initialize Conda for the ubuntu user's bash shell and set default env
@@ -136,7 +162,7 @@ RUN code-server --install-extension llvm-vs-code-extensions.vscode-clangd \
  && code-server --install-extension ms-azuretools.vscode-docker 
  
 # Set Workdir as ubuntu user
-WORKDIR /home/ubuntu/projects
+WORKDIR /workspace
 
 # Switch back to root user before CMD to start supervisord as root
 USER root
@@ -146,12 +172,8 @@ USER root
 COPY supervisor /opt/supervisor
 RUN chown -R ubuntu:ubuntu /opt/supervisor
 
-VOLUME ["/home/ubuntu/.config", "/home/ubuntu/projects"]
+VOLUME ["/workspace", "/home/ubuntu/.config", "/home/ubuntu/.conda","/home/ubuntu/.n8n"]
 EXPOSE 8443
-
-# Run supervisord using the main configuration file
-# Supervisor should now only manage code-server (and any other non-docker services)
-CMD ["/usr/bin/supervisord", "-c", "/opt/supervisor/supervisord.conf"]
 
 # --- IMPORTANT NOTES FOR SHARING HOST DOCKER DAEMON ---
 #
@@ -172,3 +194,18 @@ CMD ["/usr/bin/supervisord", "-c", "/opt/supervisor/supervisord.conf"]
 #
 # 4. Privileged Flag: The --privileged flag is NO LONGER required for Docker functionality
 #    with this setup (though code-server or other tools might still need specific capabilities).
+
+# Install bash-completion and configure bash history
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash-completion && \
+    echo "source /usr/share/bash-completion/bash_completion" >> /etc/bash.bashrc && \
+    echo "HISTFILE=/home/ubuntu/.bash_history" >> /etc/bash.bashrc && \
+    echo "HISTSIZE=10000" >> /etc/bash.bashrc && \
+    echo "HISTFILESIZE=20000" >> /etc/bash.bashrc && \
+    echo "PROMPT_COMMAND='history -a'" >> /etc/bash.bashrc && \
+    echo "shopt -s histappend" >> /etc/bash.bashrc && \
+    rm -rf /var/lib/apt/lists/*
+
+# Run supervisord using the main configuration file
+# Supervisor should now only manage code-server (and any other non-docker services)
+CMD ["/usr/bin/supervisord", "-c", "/opt/supervisor/supervisord.conf"]
