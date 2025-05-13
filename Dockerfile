@@ -27,7 +27,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     supervisor \
     clangd \
     wget \ 
-    unzip \  
+    unzip \
+    openjdk-17-jre-headless \   
  && rm -rf /var/lib/apt/lists/*
 
  # Add Docker's official GPG key & repository for CLI tools
