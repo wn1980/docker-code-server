@@ -11,8 +11,8 @@ services:
       args:
         HOST_DOCKER_GID: ${HOST_DOCKER_GID:-988} # Use default if not set
         ARCH: ${ARCH:-arm64} # Add ARCH build arg with default
+    image: wn1980/dev-server-box:${ARCH:-arm64} # Set the custom image name and tag
     # Define the image name and tag.
-    # The tag uses the ARCH environment variable set on the host.
     container_name: dev_server_box
     # privileged: true # Removed: Not needed for docker socket mount with correct GID
     # If specific capabilities are needed (e.g., for debugging), add them:
