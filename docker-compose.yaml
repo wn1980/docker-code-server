@@ -9,8 +9,8 @@ services:
     build:
       context: .
       args:
-        HOST_DOCKER_GID: ${HOST_DOCKER_GID?Error - HOST_DOCKER_GID is not set in .env file}
-    image: wn1980/dev-server-box:${ARCH?Error - ARCH environment variable is not set (e.g., export ARCH=amd64)}
+        HOST_DOCKER_GID: ${HOST_DOCKER_GID:-988} # Use default if not set
+        ARCH: ${ARCH:-arm64} # Add ARCH build arg with default
     # Define the image name and tag.
     # The tag uses the ARCH environment variable set on the host.
     container_name: dev_server_box
@@ -18,8 +18,6 @@ services:
     # If specific capabilities are needed (e.g., for debugging), add them:
     # cap_add:
     #   - SYS_PTRACE # Example: For gdb debugging
-    profiles:
-      - normal
     environment:
       - TZ=Asia/Bangkok
       - COMPOSE_BAKE=true

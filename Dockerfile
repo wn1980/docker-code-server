@@ -122,7 +122,7 @@ RUN usermod -aG docker ubuntu
 # Initialize Conda for the ubuntu user's bash shell and set default env
 USER ubuntu
 RUN conda init bash && \
-    echo "conda activate dev_env" >> /home/ubuntu/.bashrc
+    echo 'if [ "$PS1" ]; then conda activate dev_env; fi' >> /home/ubuntu/.bashrc
 
 # Switch back to root for subsequent steps
 USER root
