@@ -5,15 +5,15 @@
 # (Replace 999 with a default GID if the docker group doesn't exist on your host)
 
 services:
-  dev-server:
+  dev-box:
     build:
       context: .
       args:
         HOST_DOCKER_GID: ${HOST_DOCKER_GID:-988} # Use default if not set
         ARCH: ${ARCH:-arm64} # Add ARCH build arg with default
-    image: wn1980/dev-server-box:${ARCH:-arm64} # Set the custom image name and tag
+    image: wn1980/dev-box:${ARCH:-arm64} # Set the custom image name and tag
     # Define the image name and tag.
-    container_name: dev_server_box
+    container_name: dev_box
     # privileged: true # Removed: Not needed for docker socket mount with correct GID
     # If specific capabilities are needed (e.g., for debugging), add them:
     # cap_add:

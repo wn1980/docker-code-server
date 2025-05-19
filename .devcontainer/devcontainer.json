@@ -1,7 +1,7 @@
 {
-    "name": "DEV-SERVER-BOX",
+    "name": "DEV-BOX",
     "dockerComposeFile": "../docker-compose.yaml", // Reference the external docker-compose.yaml
-    "service": "dev-server", // Update to match the service name in docker-compose.yaml
+    "service": "dev-box", // Update to match the service name in docker-compose.yaml
     "workspaceFolder": "/workspace", // Match the workspace folder in the container
 
     "customizations": {
