@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openjdk-17-jre-headless \   
  && rm -rf /var/lib/apt/lists/*
 
- # Add Docker's official GPG key & repository for CLI tools
+# Add Docker's official GPG key & repository for CLI tools
 RUN install -m 0755 -d /etc/apt/keyrings && \
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc && \
     chmod a+r /etc/apt/keyrings/docker.asc && \
@@ -47,9 +47,9 @@ RUN install -m 0755 -d /etc/apt/keyrings && \
  && rm -rf /var/lib/apt/lists/*
 
 # Set environment variable for Miniconda installation path
-ENV MINICONDA_PATH /opt/miniconda
+ENV MINICONDA_PATH=/opt/miniconda
 # Set environment variable for updated PATH (Conda added)
-ENV PATH $MINICONDA_PATH/bin:$PATH
+ENV PATH=$MINICONDA_PATH/bin:$PATH
 
 # Install Miniconda - Dynamically select the correct installer based on TARGETARCH
 RUN \
@@ -95,6 +95,10 @@ RUN bash -c "source activate dev_env && \
     mv ngrok /usr/local/bin/ngrok && \
     rm \${NGROK_ZIP} && \
     ngrok version"
+
+# Symlink Node.js and npm from Conda env to /usr/local/bin for sudo access
+RUN ln -s /opt/miniconda/envs/dev_env/bin/node /usr/local/bin/node && \
+    ln -s /opt/miniconda/envs/dev_env/bin/npm /usr/local/bin/npm
 
 # Configure existing ubuntu user (architecture independent)
 ARG USERNAME=ubuntu
