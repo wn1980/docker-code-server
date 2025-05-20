@@ -48,8 +48,12 @@ RUN install -m 0755 -d /etc/apt/keyrings && \
 
 # Set environment variable for Miniconda installation path
 ENV MINICONDA_PATH=/opt/miniconda
-# Set environment variable for updated PATH (Conda added)
-ENV PATH=$MINICONDA_PATH/bin:$PATH
+# Set environment variable for updated PATH (Conda and ~/.local/bin added)
+ENV PATH=$MINICONDA_PATH/bin:/home/ubuntu/.local/bin:$PATH
+
+# Ensure sudo conda works for all users
+RUN echo 'Defaults secure_path="/opt/miniconda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' >> /etc/sudoers && \
+    ln -s /opt/miniconda/bin/conda /usr/local/bin/conda
 
 # Install Miniconda - Dynamically select the correct installer based on TARGETARCH
 RUN \
