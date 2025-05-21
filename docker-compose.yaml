@@ -33,7 +33,7 @@ services:
       - config:/home/ubuntu/.config
       - conda:/home/ubuntu/.conda
       - n8n_data:/home/ubuntu/.n8n
-      - webapp_ws:/workspace
+      - Codespaces:/workspace
       # - projects:/home/ubuntu/projects
       # Mount the host Docker socket
       - /var/run/docker.sock:/var/run/docker.sock:ro # Added ':ro' for read-only mount - slightly safer
@@ -66,5 +66,5 @@ volumes:
   conda:
   n8n_data:
     external: true
-  webapp_ws:
+  Codespaces:
     external: true
